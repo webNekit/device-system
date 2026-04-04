@@ -1,0 +1,251 @@
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-xl font-semibold text-gray-900">Заявки на ремонт</h1>
+            <p class="text-sm text-gray-500 mt-0.5">Управление сервисным центром</p>
+        </div>
+        @if(!$showCreateForm)
+            <button wire:click="$set('showCreateForm', true)"
+                class="btn-primary px-5 py-3 flex items-center bg-gray-900 text-gray-50 rounded-lg cursor-pointer">
+                Создать заявку
+            </button>
+        @endif
+    </div>
+
+    <!-- Modal: Create Form -->
+    @if($showCreateForm)
+        <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-xl max-w-3xl w-full p-6 shadow-xl border border-gray-200">
+                <div class="flex justify-between items-start mb-5">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-gray-600">confirmation_number</span>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900">Новая заявка</h3>
+                            <p class="text-xs text-gray-500">Регистрация устройства</p>
+                        </div>
+                    </div>
+                    <button wire:click="$set('showCreateForm', false)"
+                        class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                        <span class="material-symbols-outlined text-gray-400">close</span>
+                    </button>
+                </div>
+
+                <form wire:submit="save" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1.5">Филиал</label>
+                            @if(auth()->user()->hasRole('Admin'))
+                                <select wire:model="branch_id"
+                                    class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg">
+                                    <option value="">-- Выберите филиал --</option>
+                                    @foreach($this->branches as $branch)
+                                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('branch_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                            @else
+                                <div class="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">
+                                    {{ auth()->user()->branch->name ?? 'Не привязан' }}
+                                </div>
+                            @endif
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1.5">Клиент</label>
+                            <select wire:model="customer_id"
+                                class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg">
+                                <option value="">-- Выберите клиента --</option>
+                                @foreach($this->customers as $customer)
+                                    <option value="{{ $customer->id }}">{{ $customer->name }} ({{ $customer->phone }})</option>
+                                @endforeach
+                            </select>
+                            @error('customer_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1.5">Воронка</label>
+                            <select wire:model="pipeline_id"
+                                class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg">
+                                <option value="">-- Выберите воронку --</option>
+                                @foreach($this->pipelines as $pipeline)
+                                    <option value="{{ $pipeline->id }}">{{ $pipeline->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('pipeline_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1.5">Приоритет</label>
+                            <select wire:model="priority"
+                                class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg">
+                                <option value="low">Низкий</option>
+                                <option value="normal">Нормальный</option>
+                                <option value="urgent">Срочный</option>
+                            </select>
+                            @error('priority') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3 bg-gray-50 rounded-lg p-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1.5">Тип устройства</label>
+                            <select wire:model.live="device_type"
+                                class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg">
+                                <option value="">-- Выберите --</option>
+                                @foreach(array_keys($this->deviceDict) as $type)
+                                    <option value="{{ $type }}">{{ $type }}</option>
+                                @endforeach
+                            </select>
+                            @error('device_type') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1.5">Бренд</label>
+                            <select wire:model.live="device_brand"
+                                class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg" {{ empty($device_type) ? 'disabled' : '' }}>
+                                <option value="">-- Выберите --</option>
+                                @if(!empty($device_type) && isset($this->deviceDict[$device_type]))
+                                    @foreach(array_keys($this->deviceDict[$device_type]) as $brand)
+                                        <option value="{{ $brand }}">{{ $brand }}</option>
+                                    @endforeach
+                                @endif
+                            </select>
+                            @error('device_brand') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1.5">Модель</label>
+                            <select wire:model="device_model"
+                                class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg" {{ empty($device_brand) ? 'disabled' : '' }}>
+                                <option value="">-- Выберите --</option>
+                                @if(!empty($device_type) && !empty($device_brand) && isset($this->deviceDict[$device_type][$device_brand]))
+                                    @foreach($this->deviceDict[$device_type][$device_brand] as $model)
+                                        <option value="{{ $model }}">{{ $model }}</option>
+                                    @endforeach
+                                @endif
+                            </select>
+                            @error('device_model') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1.5">Серийный номер</label>
+                        <input type="text" wire:model="serial_number"
+                            class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg"
+                            placeholder="S/N устройства" />
+                        @error('serial_number') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1.5">Описание дефекта</label>
+                        <textarea wire:model="defect_description" rows="3"
+                            class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg resize-none"
+                            placeholder="Опишите проблему устройства..."></textarea>
+                        @error('defect_description') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+                        <button type="button" wire:click="$set('showCreateForm', false)"
+                            class="btn-secondary">Отмена</button>
+                        <button type="submit"
+                            class="btn-primary px-5 py-3 flex items-center bg-gray-900 text-gray-50 rounded-lg cursor-pointer">
+                            <span wire:loading.remove wire:target="save">Создать заявку</span>
+                            <span wire:loading wire:target="save">Создание...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    <!-- Filter Bar -->
+    <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Отображать:</span>
+            <button
+                wire:click="$set('visibleStageIds', {{ $this->stages->pluck('id')->map(fn($id) => (string) $id)->toJson() }})"
+                class="text-xs font-medium text-blue-600 hover:underline">
+                Показать все
+            </button>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+            @foreach($this->stages as $stage)
+                <label
+                    class="flex items-center space-x-2 p-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors bg-white">
+                    <input type="checkbox" wire:model.live="visibleStageIds" value="{{ $stage->id }}"
+                        class="filter-checkbox" />
+                    <span class="text-xs font-medium text-gray-700">{{ $stage->name }}</span>
+                </label>
+            @endforeach
+        </div>
+    </div>
+
+    <!-- Kanban Board -->
+    <div class="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-4 items-start">
+        @php $stagesList = $this->stages->values(); @endphp
+
+        @foreach($this->stages as $index => $stage)
+            @if(in_array((string) $stage->id, $this->visibleStageIds))
+                <div class="card flex flex-col">
+                    <div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-xl">
+                        <h3 class="text-sm font-semibold text-gray-900 uppercase">{{ $stage->name }}</h3>
+                        <span
+                            class="px-2 py-0.5 bg-gray-900 text-white rounded-full text-xs font-bold">{{ $stage->tickets->count() }}</span>
+                    </div>
+
+                    <div class="p-3 space-y-2 flex-1">
+                        @foreach($stage->tickets as $ticket)
+                            <div class="relative group">
+                                <a href="{{ route('tickets.show', $ticket->ulid) }}" wire:navigate
+                                    class="block bg-white p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all">
+
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="text-sm font-medium text-gray-900">
+                                            {{ $ticket->device_brand }} {{ $ticket->device_model }}
+                                        </div>
+                                    </div>
+
+                                    <p class="text-xs text-gray-600 line-clamp-2 mb-2 italic">
+                                        «{{ Str::limit($ticket->defect_description, 50) }}»
+                                    </p>
+
+                                    <div class="flex items-center justify-between mt-auto pt-2 border-t border-gray-100">
+                                        <div class="flex items-center text-[10px] font-medium text-gray-500 uppercase">
+                                            <span class="material-symbols-outlined text-xs mr-1">person</span>
+                                            {{ Str::limit($ticket->customer->name, 12) }}
+                                        </div>
+
+                                        @if($ticket->sla_deadline_at)
+                                            <div
+                                                class="flex items-center text-[10px] font-medium {{ $ticket->sla_deadline_at < now() ? 'text-red-600' : 'text-green-600' }}">
+                                                <span class="material-symbols-outlined text-xs mr-1">schedule</span>
+                                                {{ $ticket->sla_deadline_at->format('H:i') }}
+                                            </div>
+                                        @endif
+                                    </div>
+                                </a>
+
+                                @if(isset($stagesList[$index + 1]))
+                                    @php $nextStage = $stagesList[$index + 1]; @endphp
+                                    <button wire:click="moveTicket('{{ $ticket->id }}', {{ $nextStage->id }})"
+                                        class="absolute hidden group-hover:flex right-2 top-2 bg-white text-gray-600 hover:bg-gray-900 hover:text-white p-1.5 rounded-lg transition z-20 shadow-sm border border-gray-200">
+                                        <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                                    </button>
+                                @endif
+                            </div>
+                        @endforeach
+
+                        @if($stage->tickets->isEmpty())
+                            <div class="h-full flex items-center justify-center py-8">
+                                <div class="text-xs text-gray-400 font-medium italic">Пусто</div>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
+        @endforeach
+    </div>
+</div>
