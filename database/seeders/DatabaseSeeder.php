@@ -16,13 +16,15 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            RoleSeeder::class,        // 1. Сначала роли
-            UserRoleSeeder::class,    // 2. Затем филиалы и сотрудники
-            CustomerSeeder::class,    // 3. Затем клиенты
-            InventorySeeder::class,   // 4. Затем склады и номенклатура
-            ChecklistSeeder::class,   // 5. Чек-листы для этапов
-            ChecklistTemplatesSeeder::class,   // 6. Шаблоны чек-листов
-            TicketingSeeder::class,   // 7. И только в конце — воронки и заявки
+            RoleSeeder::class,             // 1. Сначала роли (spatie/permission)
+            UserRoleSeeder::class,         // 2. Филиалы и сотрудники
+            DeviceDictionarySeeder::class, // 3. Справочник устройств (типы, бренды, модели)
+            CustomerSeeder::class,         // 4. Клиенты и уровни лояльности
+            InventorySeeder::class,        // 5. Склады, локации, товары, остатки
+            ChecklistSeeder::class,        // 6. Чек-листы для этапов
+            ChecklistTemplatesSeeder::class,// 7. Шаблоны чек-листов
+            TicketingSeeder::class,        // 8. Воронки, стадии и заявки (канбан)
+            FinancialSeeder::class,        // 9. Финансовые транзакции
         ]);
     }
 }
