@@ -210,6 +210,84 @@
         </div>
     </div>
 
+    @if(auth()->user()->hasRole('Admin'))
+        <div class="bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl p-5 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-white text-lg">filter_list</span>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-semibold text-white">Фильтры</h3>
+                        <p class="text-xs text-gray-400">Отбор заявок по техникам и клиентам</p>
+                    </div>
+                </div>
+                @if($filterTechnicianId || $filterCustomerId)
+                    <button wire:click="$set('filterTechnicianId', null); $set('filterCustomerId', null)"
+                        class="flex items-center space-x-1.5 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition text-xs font-medium">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                        <span>Сбросить</span>
+                    </button>
+                @endif
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="relative group">
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center pointer-events-none transition group-focus-within:bg-white/20">
+                        <span class="material-symbols-outlined text-gray-400 text-lg">engineering</span>
+                    </div>
+                    <select wire:model.live="filterTechnicianId"
+                        class="w-full pl-11 pr-4 py-3 bg-white/10 border border-white/10 rounded-lg text-white text-sm appearance-none cursor-pointer hover:bg-white/15 focus:bg-white/20 focus:border-white/30 focus:outline-none transition">
+                        <option value="" class="bg-gray-900">Все техники</option>
+                        @foreach($this->technicians as $tech)
+                            <option value="{{ $tech->id }}" class="bg-gray-900">{{ $tech->name }}</option>
+                        @endforeach
+                    </select>
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="relative group">
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center pointer-events-none transition group-focus-within:bg-white/20">
+                        <span class="material-symbols-outlined text-gray-400 text-lg">person</span>
+                    </div>
+                    <select wire:model.live="filterCustomerId"
+                        class="w-full pl-11 pr-4 py-3 bg-white/10 border border-white/10 rounded-lg text-white text-sm appearance-none cursor-pointer hover:bg-white/15 focus:bg-white/20 focus:border-white/30 focus:outline-none transition">
+                        <option value="" class="bg-gray-900">Все клиенты</option>
+                        @foreach($this->customers as $customer)
+                            <option value="{{ $customer->id }}" class="bg-gray-900">{{ $customer->name }} ({{ $customer->phone }})</option>
+                        @endforeach
+                    </select>
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            @if($filterTechnicianId || $filterCustomerId)
+                <div class="mt-4 flex flex-wrap items-center gap-2 pt-4 border-t border-white/10">
+                    <span class="text-xs text-gray-400">Активные фильтры:</span>
+                    @if($filterTechnicianId)
+                        @php $tech = $this->technicians->find($filterTechnicianId) @endphp
+                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-blue-500/20 text-blue-300 rounded-md text-xs">
+                            <span class="material-symbols-outlined text-xs">engineering</span>
+                            <span>{{ $tech?->name ?? 'Техник' }}</span>
+                        </span>
+                    @endif
+                    @if($filterCustomerId)
+                        @php $customer = $this->customers->find($filterCustomerId) @endphp
+                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-green-500/20 text-green-300 rounded-md text-xs">
+                            <span class="material-symbols-outlined text-xs">person</span>
+                            <span>{{ $customer?->name ?? 'Клиент' }}</span>
+                        </span>
+                    @endif
+                </div>
+            @endif
+        </div>
+    @endif
+
     <!-- Kanban Board -->
     <div class="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-4 items-start">
         @php $stagesList = $this->stages->values(); @endphp

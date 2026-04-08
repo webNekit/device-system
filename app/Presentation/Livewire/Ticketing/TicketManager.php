@@ -3,6 +3,7 @@
 namespace App\Presentation\Livewire\Ticketing;
 
 use App\Domain\Branch\Models\Branch;
+use App\Domain\Branch\Models\User;
 use App\Domain\Customer\Actions\CreateCustomerAction;
 use App\Domain\Customer\DTOs\CustomerData;
 use App\Domain\Customer\Models\Customer;
@@ -26,6 +27,10 @@ class TicketManager extends Component
     public string|int|null $customer_id = null;
 
     public string|int|null $pipeline_id = null;
+
+    public string|int|null $filterTechnicianId = null;
+
+    public string|int|null $filterCustomerId = null;
 
     public ?string $serial_number = '';
 
@@ -111,23 +116,31 @@ class TicketManager extends Component
     }
 
     #[Computed]
+    public function technicians()
+    {
+        return User::role('Technician')->get();
+    }
+
+    #[Computed(persist: false, cache: false)]
     public function stages()
     {
         if (! $this->selectedPipelineId) {
             return collect();
         }
 
+        $isAdmin = auth()->user()->hasRole('Admin');
         $isTechnician = auth()->user()->hasRole('Technician');
         $technicianId = auth()->id();
 
+        $filterTechnicianId = $this->filterTechnicianId !== null ? (int) $this->filterTechnicianId : null;
+        $filterCustomerId = $this->filterCustomerId !== null ? $this->filterCustomerId : null;
+
         return PipelineStage::where('pipeline_id', $this->selectedPipelineId)
             ->with([
-                'tickets' => function ($query) use ($isTechnician, $technicianId) {
-                    if ($isTechnician) {
+                'tickets' => function ($query) use ($isAdmin, $isTechnician, $technicianId, $filterTechnicianId, $filterCustomerId) {
+                    if ($isTechnician && ! $isAdmin) {
                         $query->where(function ($q) use ($technicianId) {
-                            // Техник видит свои заявки
                             $q->where('assigned_technician_id', $technicianId)
-                                // ИЛИ заявки без мастера на стадии "Приёмка"
                                 ->orWhere(function ($subQ) {
                                     $subQ->whereHas('currentStage', function ($ss) {
                                         $ss->where('order_column', 1);
@@ -135,8 +148,19 @@ class TicketManager extends Component
                                 });
                         });
                     }
-                    $query->with(['customer', 'histories'])->latest();
+
+                    if ($filterTechnicianId !== null) {
+                        $query->where('assigned_technician_id', $filterTechnicianId);
+                    }
+
+                    if ($filterCustomerId !== null) {
+                        $query->where('customer_id', $filterCustomerId);
+                    }
+
+                    $query->latest();
                 },
+                'tickets.customer',
+                'tickets.histories',
             ])
             ->orderBy('order_column')
             ->get();
