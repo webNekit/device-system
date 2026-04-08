@@ -4,6 +4,7 @@ use App\Domain\Ticketing\Models\Ticket;
 use App\Presentation\Livewire\Auth\Login;
 use App\Presentation\Livewire\Branch\BranchManager;
 use App\Presentation\Livewire\Branch\UserManager;
+use App\Presentation\Livewire\Branch\UserShow;
 use App\Presentation\Livewire\Customer\CustomerManager;
 use App\Presentation\Livewire\Customer\CustomerShow;
 use App\Presentation\Livewire\Finance\FinanceDashboard;
@@ -45,7 +46,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard', Dashboard::class)->name('dashboard');
         Route::get('/branches', BranchManager::class)->name('branches.index');
         Route::get('/users', UserManager::class)->name('users.index');
-        Route::get('/users/{user}', \App\Presentation\Livewire\Branch\UserShow::class)->name('users.show');
+        Route::get('/users/{user}', UserShow::class)->name('users.show');
         Route::get('/customers', CustomerManager::class)->name('customers.index');
         Route::get('/finance', FinanceDashboard::class)->name('finance.index');
         Route::get('/settings/devices', DeviceDictionary::class)->name('settings.devices');

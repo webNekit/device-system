@@ -5,6 +5,7 @@ namespace App\Presentation\Livewire\Inventory;
 use App\Domain\Inventory\Models\InventoryItem;
 use App\Domain\Inventory\Models\Product;
 use App\Domain\Inventory\Models\Warehouse;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -96,7 +97,7 @@ class ProductManager extends Component
 
     public function generateSku()
     {
-        $this->sku = 'ITM-' . strtoupper(\Illuminate\Support\Str::random(5));
+        $this->sku = 'ITM-'.strtoupper(Str::random(5));
         $this->resetErrorBag('sku');
     }
 

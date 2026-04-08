@@ -86,10 +86,25 @@
                                     <option value="salary">Зарплата</option>
                                     <option value="marketing">Реклама</option>
                                     <option value="tools">Инструменты</option>
+                                    <optgroup label="Запчасти" class="text-xs text-gray-400">
+                                        <option value="display_parts">Дисплеи/Экраны</option>
+                                        <option value="glass_parts">Стёкла/Задние крышки</option>
+                                        <option value="battery_parts">Аккумуляторы</option>
+                                        <option value="charging_parts">Разъёмы зарядки</option>
+                                        <option value="camera_parts">Камеры</option>
+                                        <option value="speaker_parts">Динамики/Микрофоны</option>
+                                        <option value="board_components">Компоненты плат</option>
+                                        <option value="housing_parts">Корпуса/Рамки</option>
+                                        <option value="cable_parts">Шлейфы</option>
+                                        <option value="other_parts">Прочие запчасти</option>
+                                    </optgroup>
+                                    <option value="shipping">Доставка</option>
                                     <option value="other">Прочее</option>
                                 @else
+                                    <option value="repair_payment">Оплата за ремонт</option>
                                     <option value="service">Ремонт</option>
                                     <option value="sale">Продажа</option>
+                                    <option value="accessories">Аксессуары</option>
                                     <option value="other">Прочее</option>
                                 @endif
                             </select>

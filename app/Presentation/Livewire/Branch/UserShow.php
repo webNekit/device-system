@@ -13,6 +13,7 @@ use Livewire\Component;
 class UserShow extends Component
 {
     public User $user;
+
     public string $period = 'this_month';
 
     public function mount(User $user)
@@ -36,7 +37,7 @@ class UserShow extends Component
         // Ищем закрытые заявки, где этот сотрудник был мастером
         $tickets = Ticket::where('assigned_technician_id', $this->user->id)
             ->whereBetween('updated_at', $this->dateRange)
-            ->whereHas('currentStage', fn($q) => $q->where('order_column', '>=', 7)) // Выдано или Закрыто
+            ->whereHas('currentStage', fn ($q) => $q->where('order_column', '>=', 7)) // Выдано или Закрыто
             ->with('usedParts.inventoryItem')
             ->get();
 
@@ -45,8 +46,8 @@ class UserShow extends Component
 
         // Считаем себестоимость запчастей в его ремонтах
         // Убрали слово clone!
-        $totalPartsCost = (float) $tickets->flatMap(function($ticket) {
-            return $ticket->usedParts->map(fn($part) => $part->inventoryItem->purchase_price ?? 0);
+        $totalPartsCost = (float) $tickets->flatMap(function ($ticket) {
+            return $ticket->usedParts->map(fn ($part) => $part->inventoryItem->purchase_price ?? 0);
         })->sum();
 
         // Грязная маржа (Доход минус Запчасти)

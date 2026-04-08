@@ -13,7 +13,6 @@ use App\Domain\Ticketing\Models\Ticket;
 use App\Domain\Ticketing\Models\TicketStageHistory;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class TicketingSeeder extends Seeder
@@ -50,8 +49,9 @@ class TicketingSeeder extends Seeder
         $customers = Customer::all();
         $technicians = User::role('Technician')->get();
 
-        if (!$branchMoscow || $customers->isEmpty() || $technicians->isEmpty()) {
+        if (! $branchMoscow || $customers->isEmpty() || $technicians->isEmpty()) {
             $this->command->error('Не хватает данных: проверьте что Branch, Customer и Technician сидеры отработали.');
+
             return;
         }
 
@@ -88,7 +88,7 @@ class TicketingSeeder extends Seeder
             $cursor = $enteredAt->copy();
             foreach ($historyMinutes as $index => $minutes) {
                 $historyStageOrder = $index + 1;
-                if (!isset($stages[$historyStageOrder])) {
+                if (! isset($stages[$historyStageOrder])) {
                     break;
                 }
                 $historyStage = $stages[$historyStageOrder];

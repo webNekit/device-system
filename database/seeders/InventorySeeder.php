@@ -62,7 +62,7 @@ class InventorySeeder extends Seeder
         foreach ($branches as $branch) {
             $warehouse = Warehouse::firstOrCreate([
                 'branch_id' => $branch->id,
-                'name' => 'Основной склад (' . $branch->name . ')',
+                'name' => 'Основной склад ('.$branch->name.')',
             ]);
 
             $locations = [];
@@ -73,7 +73,7 @@ class InventorySeeder extends Seeder
                     'rack' => $rack,
                     'shelf' => '1',
                     'bin' => '1',
-                    'label' => 'Стеллаж ' . $rack . ' - Полка 1',
+                    'label' => 'Стеллаж '.$rack.' - Полка 1',
                 ]);
             }
 
@@ -91,7 +91,7 @@ class InventorySeeder extends Seeder
 
                 for ($i = 0; $i < $productData['count']; $i++) {
                     InventoryItem::firstOrCreate([
-                        'serial_number' => $productData['sku'] . '-' . Str::upper(Str::random(6)),
+                        'serial_number' => $productData['sku'].'-'.Str::upper(Str::random(6)),
                     ], [
                         'product_id' => $product->id,
                         'storage_location_id' => $location->id,

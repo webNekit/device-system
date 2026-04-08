@@ -43,7 +43,8 @@
 
                 @if($ticket->currentStage->order_column == 7)
                     <div class="flex flex-col items-end">
-                        <button wire:click="generateInvoiceAndClose" class="btn-primary px-5 py-3 flex items-center bg-gray-900 text-gray-50 rounded-lg cursor-pointer">
+                        <button wire:click="generateInvoiceAndClose"
+                            class="btn-primary px-5 py-3 flex items-center bg-gray-900 text-gray-50 rounded-lg cursor-pointer">
                             Выдать и печать Акта
                         </button>
                         @if($ticket->customer->email)
@@ -121,11 +122,29 @@
                         @endif
                     </div>
 
-                    @if(!$ticket->assigned_technician_id && auth()->user()->hasRole('Technician'))
-                        <button wire:click="assignToMe" class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold uppercase rounded-lg hover:bg-indigo-700 transition">
-                            Взять в работу
-                        </button>
-                    @endif
+                    <div class="flex flex-col items-end space-y-2">
+                        @if(!$ticket->assigned_technician_id && auth()->user()->hasRole('Technician'))
+                            <button wire:click="assignToMe"
+                                class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold uppercase rounded-lg hover:bg-indigo-700 transition">
+                                Взять в работу
+                            </button>
+                        @endif
+
+                        @if(auth()->user()->hasRole('Admin') || auth()->user()->hasRole('Branch Manager'))
+                            <div>
+                                <select wire:model="selectedTechnicianId" class="input text-xs p-2 border border-gray-300 rounded-lg min-w-[200px]">
+                                    <option value="">-- Назначить мастера --</option>
+                                    @foreach($this->technicians as $tech)
+                                        <option value="{{ $tech->id }}">{{ $tech->name }} ({{ $tech->email }})</option>
+                                    @endforeach
+                                </select>
+                                <button wire:click="assignTechnician"
+                                    class="mt-1 px-3 py-1 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 transition">
+                                    @if($ticket->assigned_technician_id)Переназначить@else Назначить@endif
+                                </button>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
 
@@ -189,18 +208,54 @@
                     <div class="space-y-2">
                         @foreach($ticket->usedParts as $usedPart)
                             <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                <div>
-                                    <p class="text-sm font-medium text-gray-900 uppercase">
-                                        {{ $usedPart->inventoryItem->product->name ?? 'Неизвестная деталь' }}
-                                    </p>
-                                    <p class="text-xs text-gray-500 mt-0.5">S/N:
-                                        {{ $usedPart->inventoryItem->serial_number ?? 'БЕЗ НОМЕРА' }} • Гарантия:
-                                        {{ $usedPart->warranty_days }} дн.
-                                    </p>
-                                </div>
-                                <p class="text-sm font-semibold text-gray-900">
-                                    {{ number_format($usedPart->selling_price, 0, '.', ' ') }} ₽
-                                </p>
+                                @if($editingPartId === $usedPart->id)
+                                    <!-- Edit mode -->
+                                    <div class="w-full space-y-2">
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-[10px] font-medium text-gray-500 mb-1">Цена (₽)</label>
+                                                <input type="number" wire:model="editPartSellingPrice"
+                                                    class="input text-sm p-2 w-full border border-gray-300 rounded" />
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-medium text-gray-500 mb-1">Гарантия
+                                                    (дней)</label>
+                                                <input type="number" wire:model="editPartWarrantyDays"
+                                                    class="input text-sm p-2 w-full border border-gray-300 rounded" />
+                                            </div>
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <button wire:click="savePartEdit"
+                                                class="text-xs font-medium text-green-600 hover:text-green-800">Сохранить</button>
+                                            <button wire:click="$set('editingPartId', null)"
+                                                class="text-xs font-medium text-gray-500 hover:text-gray-700">Отмена</button>
+                                        </div>
+                                    </div>
+                                @else
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900 uppercase">
+                                            {{ $usedPart->inventoryItem->product->name ?? 'Неизвестная деталь' }}
+                                        </p>
+                                        <p class="text-xs text-gray-500 mt-0.5">S/N:
+                                            {{ $usedPart->inventoryItem->serial_number ?? 'БЕЗ НОМЕРА' }} • Гарантия:
+                                            {{ $usedPart->warranty_days }} дн.
+                                        </p>
+                                    </div>
+                                    <div class="flex items-center space-x-3">
+                                        <p class="text-sm font-semibold text-gray-900">
+                                            {{ number_format($usedPart->selling_price, 0, '.', ' ') }} ₽
+                                        </p>
+                                        <button wire:click="editPart('{{ $usedPart->id }}')"
+                                            class="text-xs text-blue-600 hover:text-blue-800 p-1">
+                                            <span class="material-symbols-outlined text-sm">edit</span>
+                                        </button>
+                                        <button wire:click="removePart('{{ $usedPart->id }}')"
+                                            wire:confirm="Удалить эту запчасть из заявки?"
+                                            class="text-xs text-red-600 hover:text-red-800 p-1">
+                                            <span class="material-symbols-outlined text-sm">delete</span>
+                                        </button>
+                                    </div>
+                                @endif
                             </div>
                         @endforeach
                     </div>

@@ -6,6 +6,7 @@ use App\Domain\Branch\Actions\CreateUserAction;
 use App\Domain\Branch\DTOs\UserData;
 use App\Domain\Branch\Models\Branch;
 use App\Domain\Branch\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -81,7 +82,7 @@ class UserManager extends Component
         $this->validate([
             'name' => 'required|string|max:255',
             // Игнорируем проверку уникальности email для текущего юзера
-            'email' => 'required|email|unique:users,email' . ($user ? ',' . $user->id : ''),
+            'email' => 'required|email|unique:users,email'.($user ? ','.$user->id : ''),
             // Если это создание - пароль обязателен. Если редактирование - можно оставить пустым
             'password' => $this->showEditForm ? 'nullable|string|min:8' : 'required|string|min:8',
             'branch_id' => 'required|exists:branches,id',
@@ -98,8 +99,8 @@ class UserManager extends Component
                 'commission_percent' => $this->commission_percent,
             ]);
 
-            if (!empty($this->password)) {
-                $user->update(['password' => \Illuminate\Support\Facades\Hash::make($this->password)]);
+            if (! empty($this->password)) {
+                $user->update(['password' => Hash::make($this->password)]);
             }
 
             $user->syncRoles([$this->role_name]);

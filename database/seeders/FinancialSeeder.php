@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Domain\Branch\Models\Branch;
 use App\Domain\Branch\Models\User;
+use App\Domain\Finance\Models\FinancialTransaction;
 use App\Domain\Ticketing\Models\Ticket;
 use Illuminate\Database\Seeder;
 
@@ -16,7 +17,7 @@ class FinancialSeeder extends Seeder
         $admin = User::role('Admin')->first();
         $techMoscow = User::role('Technician')->where('branch_id', $branchMoscow?->id)->first();
 
-        if (!$branchMoscow) {
+        if (! $branchMoscow) {
             return;
         }
 
@@ -38,11 +39,11 @@ class FinancialSeeder extends Seeder
             // Привязываем к случайной закрытой заявке того же филиала
             $ticket = Ticket::withTrashed()
                 ->where('branch_id', $data['branch_id'])
-                ->whereHas('currentStage', fn($q) => $q->where('order_column', 8))
+                ->whereHas('currentStage', fn ($q) => $q->where('order_column', 8))
                 ->inRandomOrder()
                 ->first();
 
-            \App\Domain\Finance\Models\FinancialTransaction::create([
+            FinancialTransaction::create([
                 'branch_id' => $data['branch_id'],
                 'user_id' => $data['user_id'],
                 'ticket_id' => $ticket?->id,

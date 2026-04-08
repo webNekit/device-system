@@ -12,11 +12,129 @@
             </div>
         </div>
 
-        <a href="{{ route('tickets.index') }}" wire:navigate class="btn-primary">
-            <span class="material-symbols-outlined text-sm">add</span>
-            Новая заявка
-        </a>
+        <div class="flex items-center space-x-3">
+            <button wire:click="openEditModal"
+                class="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-medium flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">edit</span>
+                Редактировать
+            </button>
+            <button wire:click="deleteCustomer"
+                wire:confirm="Вы уверены, что хотите удалить этого клиента? Это действие нельзя отменить."
+                class="px-4 py-2 bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 rounded-lg text-sm font-medium flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">delete</span>
+                Удалить
+            </button>
+            <a href="{{ route('tickets.index') }}" wire:navigate class="btn-primary">
+                <span class="material-symbols-outlined text-sm">add</span>
+                Новая заявка
+            </a>
+        </div>
     </div>
+
+    <!-- Edit Modal -->
+    @if($showEditModal)
+        <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-xl border border-gray-200">
+                <div class="flex justify-between items-start mb-5">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-gray-600">edit</span>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900">Редактировать клиента</h3>
+                            <p class="text-xs text-gray-500">Изменение контактных данных</p>
+                        </div>
+                    </div>
+                    <button wire:click="$set('showEditModal', false)"
+                        class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                        <span class="material-symbols-outlined text-gray-400">close</span>
+                    </button>
+                </div>
+
+                <form wire:submit="updateCustomer" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1.5">Тип</label>
+                            <select wire:model.live="editType"
+                                class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg">
+                                <option value="individual">Физическое лицо</option>
+                                <option value="legal">Юридическое лицо</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1.5">ФИО / Название</label>
+                            <input type="text" wire:model="editName"
+                                class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg"
+                                placeholder="Иванов И.И." />
+                            @error('editName') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1.5">Телефон</label>
+                            <input type="tel" wire:model="editPhone"
+                                class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg"
+                                placeholder="+7 (999) 000-00-00" />
+                            @error('editPhone') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1.5">Email</label>
+                            <input type="email" wire:model="editEmail"
+                                class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg"
+                                placeholder="email@example.com" />
+                            @error('editEmail') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+
+                    @if($editType === 'legal')
+                        <div class="p-4 bg-gray-50 rounded-lg space-y-3">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1.5">ИНН</label>
+                                    <input type="text" wire:model="editInn"
+                                        class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg"
+                                        placeholder="1234567890" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1.5">КПП</label>
+                                    <input type="text" wire:model="editKpp"
+                                        class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg"
+                                        placeholder="123456789" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1.5">Юр. адрес</label>
+                                <input type="text" wire:model="editLegalAddress"
+                                    class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg"
+                                    placeholder="г. Москва, ул..." />
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+                        <button type="button" wire:click="$set('showEditModal', false)"
+                            class="btn-secondary cursor-pointer">Отмена</button>
+                        <button type="submit"
+                            class="btn-primary px-5 py-3 flex items-center bg-gray-900 text-gray-50 rounded-lg cursor-pointer">
+                            <span wire:loading.remove wire:target="updateCustomer">Сохранить</span>
+                            <span wire:loading wire:target="updateCustomer">Сохранение...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    @if($successMessage)
+        <div class="p-3 bg-green-50 text-green-700 rounded-lg text-sm flex items-center gap-2">
+            <span class="material-symbols-outlined fill text-sm">check_circle</span>
+            <span>{{ $successMessage }}</span>
+            <button wire:click="$set('successMessage', '')" class="ml-auto">
+                <span class="material-symbols-outlined text-sm">close</span>
+            </button>
+        </div>
+    @endif
 
     <!-- Клиент и Статистика (LTV) -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -119,7 +237,7 @@
                                     {{ $ticket->currentStage->name }}
                                 </span>
                                 <span
-                                    class="text-[10px] text-gray-400 font-mono">{{ $ticket->created_at->format('d.m.Y') }}</span>
+                                    class="text-[10px] text-gray-400 font-mono">{{ $ticket->created_at->format('d.m.Y H:i') }}</span>
                             </div>
 
                             <p class="text-xs text-gray-600 mb-3 italic">«{{ $ticket->defect_description }}»</p>

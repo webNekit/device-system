@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
             CustomerSeeder::class,         // 4. Клиенты и уровни лояльности
             InventorySeeder::class,        // 5. Склады, локации, товары, остатки
             ChecklistSeeder::class,        // 6. Чек-листы для этапов
-            ChecklistTemplatesSeeder::class,// 7. Шаблоны чек-листов
+            ChecklistTemplatesSeeder::class, // 7. Шаблоны чек-листов
             TicketingSeeder::class,        // 8. Воронки, стадии и заявки (канбан)
             FinancialSeeder::class,        // 9. Финансовые транзакции
         ]);

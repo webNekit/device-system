@@ -20,9 +20,73 @@ class CustomerShow extends Component
     #[Url(as: 'q')]
     public string $search = '';
 
+    // Edit modal properties
+    public bool $showEditModal = false;
+
+    public string $editType = 'individual';
+
+    public string $editName = '';
+
+    public string $editPhone = '';
+
+    public string $editEmail = '';
+
+    public string $editInn = '';
+
+    public string $editKpp = '';
+
+    public string $editLegalAddress = '';
+
+    public string $successMessage = '';
+
     public function mount(Customer $customer)
     {
         $this->customer = $customer->load('loyaltyLevel');
+    }
+
+    public function updateCustomer()
+    {
+        $this->validate([
+            'editType' => 'required|string',
+            'editName' => 'required|string|max:255',
+            'editPhone' => 'nullable|string|max:20',
+            'editEmail' => 'nullable|email|max:255',
+            'editInn' => 'nullable|string|max:12',
+            'editKpp' => 'nullable|string|max:9',
+        ]);
+
+        $this->customer->update([
+            'type' => $this->editType,
+            'name' => $this->editName,
+            'phone' => $this->editPhone ?: null,
+            'email' => $this->editEmail ?: null,
+            'inn' => $this->editInn ?: null,
+            'kpp' => $this->editKpp ?: null,
+            'legal_address' => $this->editLegalAddress ?: null,
+        ]);
+
+        $this->showEditModal = false;
+        $this->successMessage = 'Данные клиента успешно обновлены';
+        $this->customer->refresh();
+    }
+
+    public function deleteCustomer()
+    {
+        $this->customer->delete();
+
+        return redirect()->route('customers.index');
+    }
+
+    public function openEditModal()
+    {
+        $this->editType = $this->customer->type;
+        $this->editName = $this->customer->name;
+        $this->editPhone = $this->customer->phone ?? '';
+        $this->editEmail = $this->customer->email ?? '';
+        $this->editInn = $this->customer->inn ?? '';
+        $this->editKpp = $this->customer->kpp ?? '';
+        $this->editLegalAddress = $this->customer->legal_address ?? '';
+        $this->showEditModal = true;
     }
 
     #[Computed]

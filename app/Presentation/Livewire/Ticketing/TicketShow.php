@@ -16,6 +16,7 @@ use App\Domain\Ticketing\Models\MagicLink;
 use App\Domain\Ticketing\Models\PipelineStage;
 use App\Domain\Ticketing\Models\Ticket;
 use App\Domain\Ticketing\Models\TicketComment;
+use App\Domain\Ticketing\Models\TicketInventory;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -50,6 +51,16 @@ class TicketShow extends Component
 
     public int|string $partWarrantyDays = 30;
 
+    // Свойства для назначения мастера
+    public string|int|null $selectedTechnicianId = null;
+
+    // Свойства для редактирования запчасти
+    public ?string $editingPartId = null;
+
+    public float $editPartSellingPrice = 0;
+
+    public int $editPartWarrantyDays = 0;
+
     public function mount(Ticket $ticket, GSMArenaService $specsService)
     {
         // Подгружаем заявку + историю + уже добавленные запчасти (с их названиями из склада)
@@ -81,11 +92,38 @@ class TicketShow extends Component
     public function assignToMe()
     {
         $this->ticket->update([
-            'assigned_technician_id' => auth()->id()
+            'assigned_technician_id' => auth()->id(),
         ]);
 
         $this->ticket->refresh();
         $this->successMessage = 'Вы назначены ответственным мастером по этой заявке!';
+    }
+
+    #[Computed]
+    public function technicians()
+    {
+        $query = User::role('Technician');
+        if (! auth()->user()->hasRole('Admin')) {
+            $query->where('branch_id', auth()->user()->branch_id);
+        }
+
+        return $query->get();
+    }
+
+    public function assignTechnician()
+    {
+        if (empty($this->selectedTechnicianId)) {
+            $this->addError('selectedTechnicianId', 'Выберите мастера');
+
+            return;
+        }
+
+        $this->ticket->update([
+            'assigned_technician_id' => $this->selectedTechnicianId,
+        ]);
+
+        $this->ticket->refresh();
+        $this->successMessage = 'Мастер успешно назначен на заявку!';
     }
 
     #[Computed]
@@ -344,6 +382,68 @@ class TicketShow extends Component
 
         // 8. Открываем сгенерированный PDF в новой вкладке браузера
         $this->js("window.open('/tickets/{$this->ticket->ulid}/invoice', '_blank');");
+    }
+
+    public function editPart(string $partId)
+    {
+        $part = TicketInventory::findOrFail($partId);
+
+        $this->editingPartId = $partId;
+        $this->editPartSellingPrice = (float) $part->selling_price;
+        $this->editPartWarrantyDays = (int) $part->warranty_days;
+    }
+
+    public function savePartEdit()
+    {
+        $this->validate([
+            'editPartSellingPrice' => 'required|numeric|min:0',
+            'editPartWarrantyDays' => 'required|integer|min:0',
+        ]);
+
+        $part = TicketInventory::findOrFail($this->editingPartId);
+        $part->update([
+            'selling_price' => $this->editPartSellingPrice,
+            'warranty_days' => $this->editPartWarrantyDays,
+        ]);
+
+        $this->editingPartId = null;
+        $this->ticket->refresh();
+        $this->ticket->load(['usedParts.inventoryItem.product']);
+
+        // Пересчитываем общую стоимость
+        $partsTotal = $this->ticket->usedParts()->sum('selling_price');
+        $laborCost = $this->ticket->labor_cost ?? 0;
+        $this->ticket->update(['estimated_cost' => $partsTotal + $laborCost]);
+        $this->laborCost = $laborCost;
+
+        $this->successMessage = 'Данные запчасти обновлены';
+    }
+
+    public function removePart(string $partId)
+    {
+        $part = TicketInventory::findOrFail($partId);
+
+        // Возвращаем запчасть на склад (делаем её снова available)
+        $inventoryItem = $part->inventoryItem;
+        if ($inventoryItem) {
+            $inventoryItem->update(['status' => 'available']);
+        }
+
+        // Сохраняем selling_price до удаления
+        $sellingPrice = $part->selling_price;
+
+        $part->delete();
+
+        $this->ticket->refresh();
+        $this->ticket->load(['usedParts.inventoryItem.product']);
+
+        // Пересчитываем общую стоимость
+        $partsTotal = $this->ticket->usedParts()->sum('selling_price');
+        $laborCost = $this->ticket->labor_cost ?? 0;
+        $this->ticket->update(['estimated_cost' => $partsTotal + $laborCost]);
+        $this->laborCost = $laborCost;
+
+        $this->successMessage = 'Запчасть удалена из заявки';
     }
 
     public function render()

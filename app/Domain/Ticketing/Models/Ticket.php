@@ -41,6 +41,8 @@ class Ticket extends Model
 
     protected $casts = [
         'sla_deadline_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     public function uniqueIds(): array
@@ -95,6 +97,6 @@ class Ticket extends Model
 
     public function technician()
     {
-        return $this->belongsTo(\App\Domain\Branch\Models\User::class, 'assigned_technician_id');
+        return $this->belongsTo(User::class, 'assigned_technician_id');
     }
 }

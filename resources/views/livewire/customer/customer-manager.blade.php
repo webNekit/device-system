@@ -156,7 +156,11 @@
                             class="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 rounded-lg transition-colors">
                             Профиль и история
                         </a>
-                        <button wire:click="delete({{ $customer->id }})" wire:confirm="Вы уверены?"
+                        <button wire:click="edit('{{ $customer->id }}')"
+                            class="px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                            Изменить
+                        </button>
+                        <button wire:click="delete('{{ $customer->id }}')"
                             class="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                             Удалить
                         </button>

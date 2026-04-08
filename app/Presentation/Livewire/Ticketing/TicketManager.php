@@ -3,6 +3,8 @@
 namespace App\Presentation\Livewire\Ticketing;
 
 use App\Domain\Branch\Models\Branch;
+use App\Domain\Customer\Actions\CreateCustomerAction;
+use App\Domain\Customer\DTOs\CustomerData;
 use App\Domain\Customer\Models\Customer;
 use App\Domain\Ticketing\Actions\CreateTicketAction;
 use App\Domain\Ticketing\DTOs\CreateTicketData;
@@ -42,6 +44,15 @@ class TicketManager extends Component
 
     public ?string $device_model = null;
 
+    // Свойства для быстрого создания клиента
+    public bool $showNewCustomerForm = false;
+
+    public string $newCustomerName = '';
+
+    public string $newCustomerPhone = '';
+
+    public string $newCustomerEmail = '';
+
     public function mount()
     {
         $this->visibleStageIds = PipelineStage::pluck('id')->map(fn ($id) => (string) $id)->toArray();
@@ -53,6 +64,7 @@ class TicketManager extends Component
         $firstPipeline = Pipeline::first();
         if ($firstPipeline) {
             $this->selectedPipelineId = $firstPipeline->id;
+            $this->pipeline_id = $firstPipeline->id;
         }
     }
 
@@ -105,9 +117,24 @@ class TicketManager extends Component
             return collect();
         }
 
+        $isTechnician = auth()->user()->hasRole('Technician');
+        $technicianId = auth()->id();
+
         return PipelineStage::where('pipeline_id', $this->selectedPipelineId)
             ->with([
-                'tickets' => function ($query) {
+                'tickets' => function ($query) use ($isTechnician, $technicianId) {
+                    if ($isTechnician) {
+                        $query->where(function ($q) use ($technicianId) {
+                            // Техник видит свои заявки
+                            $q->where('assigned_technician_id', $technicianId)
+                                // ИЛИ заявки без мастера на стадии "Приёмка"
+                                ->orWhere(function ($subQ) {
+                                    $subQ->whereHas('currentStage', function ($ss) {
+                                        $ss->where('order_column', 1);
+                                    })->whereNull('assigned_technician_id');
+                                });
+                        });
+                    }
                     $query->with(['customer', 'histories'])->latest();
                 },
             ])
@@ -186,6 +213,49 @@ class TicketManager extends Component
 
         $ticket->histories()->create(['stage_id' => $nextStageId, 'user_id' => auth()->id() ?? 1, 'entered_at' => now()]);
         unset($this->stages);
+    }
+
+    public function claimTicket($ticketId)
+    {
+        $ticket = Ticket::findOrFail($ticketId);
+
+        // Только техник может взять заявку без мастера
+        if (! auth()->user()->hasRole('Technician') || ! is_null($ticket->assigned_technician_id)) {
+            abort(403, 'Эта заявка уже назначена на мастера');
+        }
+
+        $ticket->update(['assigned_technician_id' => auth()->id()]);
+        unset($this->stages);
+    }
+
+    public function saveNewCustomer(CreateCustomerAction $action)
+    {
+        $this->validate([
+            'newCustomerName' => 'required|string|max:255',
+            'newCustomerPhone' => 'nullable|string|max:20',
+            'newCustomerEmail' => 'nullable|email|max:255',
+        ]);
+
+        $dto = new CustomerData(
+            type: 'individual',
+            name: $this->newCustomerName,
+            phone: $this->newCustomerPhone ?: null,
+            email: $this->newCustomerEmail ?: null,
+            inn: null,
+            kpp: null,
+            legal_address: null,
+            loyalty_level_id: null,
+        );
+
+        $customer = $action->execute($dto);
+
+        // Automatically select the newly created customer
+        $this->customer_id = $customer->id;
+        $this->showNewCustomerForm = false;
+        $this->reset(['newCustomerName', 'newCustomerPhone', 'newCustomerEmail']);
+
+        // Refresh the customers list
+        unset($this->customers);
     }
 
     public function render()
