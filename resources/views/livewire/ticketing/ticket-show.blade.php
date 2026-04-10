@@ -245,10 +245,6 @@
                                         <p class="text-sm font-semibold text-gray-900">
                                             {{ number_format($usedPart->selling_price, 0, '.', ' ') }} ₽
                                         </p>
-                                        <button wire:click="editPart('{{ $usedPart->id }}')"
-                                            class="text-xs text-blue-600 hover:text-blue-800 p-1">
-                                            <span class="material-symbols-outlined text-sm">edit</span>
-                                        </button>
                                         <button wire:click="removePart('{{ $usedPart->id }}')"
                                             wire:confirm="Удалить эту запчасть из заявки?"
                                             class="text-xs text-red-600 hover:text-red-800 p-1">
