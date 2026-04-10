@@ -266,18 +266,6 @@
                 </a>
                 @endhasanyrole
 
-                @hasrole('Admin')
-                <!-- Система -->
-                <div class="pt-4 pb-2">
-                    <div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-3">Система</div>
-                </div>
-                <a href="/pulse"
-                   class="{{ $baseItemClass }} {{ request()->is('pulse') ? $activeClass : $inactiveClass }}">
-                    <span class="{{ $iconClass }}">monitoring</span>
-                    <span>Pulse Analytics</span>
-                </a>
-                @endhasrole
-
                 <!-- Отступ внизу чтобы скролл был красивым -->
                 <div class="pb-4"></div>
             </nav>
