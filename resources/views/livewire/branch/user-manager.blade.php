@@ -134,14 +134,6 @@
                     <p class="text-xs text-gray-500">{{ $this->users->count() }} всего</p>
                 </div>
             </div>
-            <div class="flex space-x-2">
-                <button class="btn-secondary">
-                    Фильтр
-                </button>
-                <button class="btn-secondary">
-                    Экспорт
-                </button>
-            </div>
         </div>
 
         <div class="divide-y divide-gray-100">
