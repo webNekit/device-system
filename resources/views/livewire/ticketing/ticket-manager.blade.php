@@ -219,18 +219,35 @@
                     </div>
                     <div>
                         <h3 class="text-sm font-semibold text-white">Фильтры</h3>
-                        <p class="text-xs text-gray-400">Отбор заявок по техникам и клиентам</p>
+                        <p class="text-xs text-gray-400">Отбор заявок по филиалам, техникам и клиентам</p>
                     </div>
                 </div>
-                @if($filterTechnicianId || $filterCustomerId)
-                    <button wire:click="$set('filterTechnicianId', null); $set('filterCustomerId', null)"
+                @if($filterTechnicianId || $filterCustomerId || $filterBranchId)
+                    <button wire:click="$set('filterTechnicianId', null); $set('filterCustomerId', null); $set('filterBranchId', null)"
                         class="flex items-center space-x-1.5 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition text-xs font-medium">
                         <span class="material-symbols-outlined text-sm">close</span>
                         <span>Сбросить</span>
                     </button>
                 @endif
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="relative group">
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center pointer-events-none transition group-focus-within:bg-white/20">
+                        <span class="material-symbols-outlined text-gray-400 text-lg">store</span>
+                    </div>
+                    <select wire:model.live="filterBranchId"
+                        class="w-full pl-11 pr-4 py-3 bg-white/10 border border-white/10 rounded-lg text-white text-sm appearance-none cursor-pointer hover:bg-white/15 focus:bg-white/20 focus:border-white/30 focus:outline-none transition">
+                        <option value="" class="bg-gray-900">Все филиалы</option>
+                        @foreach($this->branches as $branch)
+                            <option value="{{ $branch->id }}" class="bg-gray-900">{{ $branch->name }}</option>
+                        @endforeach
+                    </select>
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                </div>
                 <div class="relative group">
                     <div class="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center pointer-events-none transition group-focus-within:bg-white/20">
                         <span class="material-symbols-outlined text-gray-400 text-lg">engineering</span>
@@ -266,9 +283,16 @@
                     </div>
                 </div>
             </div>
-            @if($filterTechnicianId || $filterCustomerId)
+            @if($filterTechnicianId || $filterCustomerId || $filterBranchId)
                 <div class="mt-4 flex flex-wrap items-center gap-2 pt-4 border-t border-white/10">
                     <span class="text-xs text-gray-400">Активные фильтры:</span>
+                    @if($filterBranchId)
+                        @php $branch = $this->branches->find($filterBranchId) @endphp
+                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-purple-500/20 text-purple-300 rounded-md text-xs">
+                            <span class="material-symbols-outlined text-xs">store</span>
+                            <span>{{ $branch?->name ?? 'Филиал' }}</span>
+                        </span>
+                    @endif
                     @if($filterTechnicianId)
                         @php $tech = $this->technicians->find($filterTechnicianId) @endphp
                         <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-blue-500/20 text-blue-300 rounded-md text-xs">

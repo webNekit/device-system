@@ -32,6 +32,8 @@ class TicketManager extends Component
 
     public string|int|null $filterCustomerId = null;
 
+    public string|int|null $filterBranchId = null;
+
     public ?string $serial_number = '';
 
     public ?string $defect_description = '';
@@ -134,10 +136,11 @@ class TicketManager extends Component
 
         $filterTechnicianId = $this->filterTechnicianId !== null ? (int) $this->filterTechnicianId : null;
         $filterCustomerId = $this->filterCustomerId !== null ? $this->filterCustomerId : null;
+        $filterBranchId = $this->filterBranchId !== null ? (int) $this->filterBranchId : null;
 
         return PipelineStage::where('pipeline_id', $this->selectedPipelineId)
             ->with([
-                'tickets' => function ($query) use ($isAdmin, $isTechnician, $technicianId, $filterTechnicianId, $filterCustomerId) {
+                'tickets' => function ($query) use ($isAdmin, $isTechnician, $technicianId, $filterTechnicianId, $filterCustomerId, $filterBranchId) {
                     if ($isTechnician && ! $isAdmin) {
                         $query->where(function ($q) use ($technicianId) {
                             $q->where('assigned_technician_id', $technicianId)
@@ -155,6 +158,10 @@ class TicketManager extends Component
 
                     if ($filterCustomerId !== null) {
                         $query->where('customer_id', $filterCustomerId);
+                    }
+
+                    if ($filterBranchId !== null) {
+                        $query->where('branch_id', $filterBranchId);
                     }
 
                     $query->latest();

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,16 +15,19 @@
             padding: 20px;
             background-color: #f9fafb;
         }
+
         .container {
             background-color: white;
             border-radius: 16px;
             padding: 32px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
+
         .header {
             text-align: center;
             margin-bottom: 32px;
         }
+
         .header h1 {
             color: #4f46e5;
             font-size: 24px;
@@ -32,26 +36,31 @@
             letter-spacing: -0.5px;
             margin: 0;
         }
+
         .header p {
             color: #6b7280;
             font-size: 14px;
             margin: 8px 0 0;
         }
+
         .info-box {
             background-color: #f3f4f6;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 24px;
         }
+
         .info-row {
             display: flex;
             justify-content: space-between;
             margin-bottom: 12px;
             font-size: 14px;
         }
+
         .info-row:last-child {
             margin-bottom: 0;
         }
+
         .info-label {
             font-weight: 700;
             color: #6b7280;
@@ -59,10 +68,12 @@
             font-size: 11px;
             letter-spacing: 0.5px;
         }
+
         .info-value {
             font-weight: 700;
             color: #1f2937;
         }
+
         .cta-button {
             display: inline-block;
             background-color: #4f46e5;
@@ -76,6 +87,7 @@
             letter-spacing: 0.5px;
             margin-top: 20px;
         }
+
         .footer {
             text-align: center;
             margin-top: 32px;
@@ -86,6 +98,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -113,15 +126,9 @@
         </div>
 
         <p style="text-align: center; color: #4b5563; font-size: 14px; margin-bottom: 24px;">
-            Пожалуйста, посетите наш сервисный центр для получения устройства. 
+            Пожалуйста, посетите наш сервисный центр для получения устройства.
             Не забудьте взять с собой документ, удостоверяющий личность.
         </p>
-
-        <div style="text-align: center;">
-            <a href="{{ route('client.portal', $ticket->ulid) }}" class="cta-button">
-                Проверить статус
-            </a>
-        </div>
 
         <div class="footer">
             <p>Это письмо отправлено автоматически. Пожалуйста, не отвечайте на него.</p>
@@ -129,4 +136,5 @@
         </div>
     </div>
 </body>
+
 </html>

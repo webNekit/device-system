@@ -135,11 +135,11 @@
                             <div>
                                 <p class="text-sm font-medium text-gray-900">{{ $ticket->device_brand }}
                                     {{ $ticket->device_model }}</p>
-                                <p class="text-xs text-gray-500">{{ $ticket->customer->name }}</p>
+                                <p class="text-xs text-gray-500">{{ $ticket->customer->name ?? '—' }}</p>
                             </div>
                         </div>
                         <div class="text-right">
-                            <span class="badge badge-gray">{{ $ticket->currentStage->name }}</span>
+                            <span class="badge badge-gray">{{ $ticket->currentStage->name ?? '—' }}</span>
                             <p class="text-xs text-gray-400 mt-1">{{ $ticket->created_at->diffForHumans() }}</p>
                         </div>
                     </a>

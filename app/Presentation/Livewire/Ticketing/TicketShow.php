@@ -17,6 +17,7 @@ use App\Domain\Ticketing\Models\PipelineStage;
 use App\Domain\Ticketing\Models\Ticket;
 use App\Domain\Ticketing\Models\TicketComment;
 use App\Domain\Ticketing\Models\TicketInventory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -34,6 +35,9 @@ class TicketShow extends Component
     public array $checklistAnswers = [];
 
     public string $successMessage = '';
+
+    // Свойство для хранения доступных запчастей
+    public array $availablePartsList = [];
 
     // Свойства для модуля запчастей
     public string $newComment = '';
@@ -60,6 +64,9 @@ class TicketShow extends Component
     public float $editPartSellingPrice = 0;
 
     public int $editPartWarrantyDays = 0;
+
+    // Список ID запчастей для отслеживания обновлений
+    public int $availablePartsVersion = 0;
 
     public function mount(Ticket $ticket, GSMArenaService $specsService)
     {
@@ -168,28 +175,41 @@ class TicketShow extends Component
 
     // --- МОДУЛЬ СКЛАДА (Поиск и добавление запчасти) ---
 
-    #[Computed]
+    public function updatedShowPartForm(bool $value)
+    {
+        if ($value) {
+            $this->searchPartSku = '';
+            $this->refreshAvailableParts();
+        }
+    }
+
+    public function updatedSearchPartSku(string $value)
+    {
+        if ($this->showPartForm) {
+            $this->refreshAvailableParts();
+        }
+    }
+
+    public function refreshAvailableParts()
+    {
+        $parts = $this->loadAvailableParts();
+        $this->availablePartsList = $parts->pluck('id')->toArray();
+        $this->availablePartsVersion++;
+    }
+
     public function availableParts()
     {
         if (! $this->showPartForm) {
-            return collect();
+            return [];
         }
 
-        // Ищем только свободные детали
-        $query = InventoryItem::with('product')->where('status', 'available');
-
-        // Если введен текст поиска, ищем по артикулу, названию или серийнику
-        if (! empty($this->searchPartSku)) {
-            $query->where(function ($q) {
-                $q->whereHas('product', function ($subQ) {
-                    $subQ->where('name', 'like', '%'.$this->searchPartSku.'%')
-                        ->orWhere('sku', 'like', '%'.$this->searchPartSku.'%');
-                })->orWhere('serial_number', 'like', '%'.$this->searchPartSku.'%');
-            });
+        if (empty($this->availablePartsList)) {
+            return [];
         }
 
-        // Берем первые 15 совпадений, чтобы не перегружать селект
-        return $query->take(15)->get();
+        return InventoryItem::with('product')
+            ->whereIn('id', $this->availablePartsList)
+            ->get();
     }
 
     public function attachPart(AttachPartToTicketAction $action)
@@ -218,6 +238,7 @@ class TicketShow extends Component
         // Сбрасываем форму
         $this->reset(['showPartForm', 'searchPartSku', 'selectedPartId', 'partSellingPrice']);
         $this->partWarrantyDays = 30;
+        $this->refreshAvailableParts();
 
         // Обновляем данные заявки
         $this->ticket->refresh();
@@ -448,6 +469,27 @@ class TicketShow extends Component
 
     public function render()
     {
+        // Инициализируем список запчастей при первом рендере
+        if ($this->showPartForm && empty($this->availablePartsList)) {
+            $this->refreshAvailableParts();
+        }
+
         return view('livewire.ticketing.ticket-show');
+    }
+
+    private function loadAvailableParts(): Collection
+    {
+        $query = InventoryItem::with('product')->where('status', 'available');
+
+        if (! empty($this->searchPartSku)) {
+            $query->where(function ($q) {
+                $q->whereHas('product', function ($subQ) {
+                    $subQ->where('name', 'like', '%'.$this->searchPartSku.'%')
+                        ->orWhere('sku', 'like', '%'.$this->searchPartSku.'%');
+                })->orWhere('serial_number', 'like', '%'.$this->searchPartSku.'%');
+            });
+        }
+
+        return $query->take(15)->get();
     }
 }

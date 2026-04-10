@@ -172,7 +172,7 @@
                             <label class="block text-xs font-medium text-gray-500 mb-1.5">Выберите деталь</label>
                             <select wire:model="selectedPartId" class="input">
                                 <option value="">-- Выберите --</option>
-                                @foreach($this->availableParts as $part)
+                                @foreach($this->availableParts() as $part)
                                     <option value="{{ $part->id }}">{{ $part->product->name }} (S/N:
                                         {{ $part->serial_number ?? 'НЕТ' }}) — {{ $part->purchase_price ?? 0 }} ₽
                                     </option>
