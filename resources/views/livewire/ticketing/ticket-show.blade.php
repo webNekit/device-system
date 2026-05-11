@@ -54,9 +54,14 @@
                             </span>
                         @endif
                     </div>
-                @elseif($this->nextStage)
+                @elseif($this->nextStage())
+                    @error('stage_error')
+                        <div class="p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg mr-2">
+                            {{ $message }}
+                        </div>
+                    @enderror
                     <button wire:click="moveToNextStage" class="btn-primary">
-                        В «{{ $this->nextStage->name }}»
+                        В «{{ $this->nextStage()->name }}»
                         <span class="material-symbols-outlined text-sm">arrow_forward</span>
                     </button>
                 @endif
@@ -69,19 +74,68 @@
         <div class="lg:col-span-3">
             <div class="card p-5">
                 <h3 class="text-xs font-semibold text-gray-500 uppercase mb-4">Таймлайн</h3>
+                @php
+                    $stageTypeMap = [1 => 'intake', 2 => 'diagnostics', 6 => 'qc', 7 => 'output', 8 => 'output'];
+                    $resultsByType = $ticket->checklistResults->groupBy(fn($r) => $r->checklist?->type);
+                @endphp
                 <div class="space-y-4">
                     @foreach($ticket->histories as $history)
+                        @php
+                            $stageType = $stageTypeMap[$history->stage->order_column] ?? null;
+                            $stageResults = $stageType ? $resultsByType->get($stageType, collect()) : collect();
+                        @endphp
                         <div
+                            x-data="{ open: {{ $stageResults->isNotEmpty() ? 'false' : 'true' }} }"
                             class="relative pl-6 pb-4 border-l-2 {{ $history->exited_at ? 'border-gray-300' : 'border-gray-300 border-dashed' }}">
                             <div
                                 class="absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full {{ $history->exited_at ? 'bg-gray-900' : 'bg-white border-2 border-gray-900' }}">
                             </div>
-                            <p class="text-xs text-gray-500">{{ $history->entered_at->format('d.m H:i') }}</p>
-                            <p class="text-sm font-medium text-gray-900 uppercase">{{ $history->stage->name }}</p>
-                            @if($history->exited_at)
-                                <p class="text-xs text-gray-400 mt-0.5">На этапе:
-                                    {{ round($history->entered_at->diffInMinutes($history->exited_at)) }} мин.
-                                </p>
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <p class="text-xs text-gray-500">{{ $history->entered_at->format('d.m H:i') }}</p>
+                                    <p class="text-sm font-medium text-gray-900 uppercase">{{ $history->stage->name }}</p>
+                                    @if($history->exited_at)
+                                        <p class="text-xs text-gray-400 mt-0.5">На этапе:
+                                            {{ round($history->entered_at->diffInMinutes($history->exited_at)) }} мин.
+                                        </p>
+                                    @endif
+                                </div>
+                                @if($stageResults->isNotEmpty())
+                                    <button @click="open = !open"
+                                        class="shrink-0 p-1 hover:bg-gray-100 rounded transition-colors"
+                                        :class="{ 'rotate-180': open }">
+                                        <span class="material-symbols-outlined text-sm text-gray-500">expand_more</span>
+                                    </button>
+                                @endif
+                            </div>
+                            @if($stageResults->isNotEmpty())
+                                <div x-show="open"
+                                    x-collapse.duration.200ms
+                                    class="mt-3 space-y-2">
+                                    @foreach($stageResults as $result)
+                                        <div class="p-2 bg-gray-50 rounded border border-gray-100">
+                                            <div class="flex items-center justify-between mb-1.5">
+                                                <p class="text-[10px] font-medium text-gray-900">
+                                                    {{ $result->checklist?->name ?? 'Чек-лист #'.$result->checklist_id }}
+                                                </p>
+                                                <p class="text-[9px] text-gray-400">
+                                                    {{ $result->user?->name ?? 'Система' }} | {{ $result->created_at->format('d.m H:i') }}
+                                                </p>
+                                            </div>
+                                            <div class="space-y-0.5">
+                                                @foreach(($result->checklist?->items ?? []) as $item)
+                                                    @php $checked = isset($result->answers_json[$item->id]) && $result->answers_json[$item->id]; @endphp
+                                                    <div class="flex items-center gap-1.5 text-[10px] {{ $checked ? 'text-green-700' : 'text-gray-400' }}">
+                                                        <span class="material-symbols-outlined" style="font-size: 12px;">
+                                                            {{ $checked ? 'check_box' : 'check_box_outline_blank' }}
+                                                        </span>
+                                                        <span class="{{ $checked ? '' : 'line-through' }}">{{ $item->question }}</span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
                             @endif
                         </div>
                     @endforeach

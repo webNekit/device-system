@@ -6,7 +6,6 @@ use App\Application\Services\GSMArenaService;
 use App\Domain\Branch\Models\User;
 use App\Domain\Finance\Actions\CreateTransactionAction;
 use App\Domain\Inventory\Models\InventoryItem;
-use App\Domain\Ticketing\Actions\AttachPartToTicketAction;
 use App\Domain\Ticketing\Mails\MagicLinkMail;
 use App\Domain\Ticketing\Mails\TicketReadyForPickupMail;
 use App\Domain\Ticketing\Models\Checklist;
@@ -20,7 +19,6 @@ use App\Domain\Ticketing\Models\TicketInventory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -68,9 +66,18 @@ class TicketShow extends Component
     // Список ID запчастей для отслеживания обновлений
     public int $availablePartsVersion = 0;
 
+    #[Computed]
+    public function nextStage(): ?PipelineStage
+    {
+        return PipelineStage::where('pipeline_id', $this->ticket->pipeline_id)
+            ->where('order_column', '>', $this->ticket->currentStage->order_column)
+            ->orderBy('order_column')
+            ->first();
+    }
+
     public function mount(Ticket $ticket, GSMArenaService $specsService)
     {
-        // Подгружаем заявку + историю + уже добавленные запчасти (с их названиями из склада)
+        // Подгружаем заявку + историю + уже добавленные запчасти (с их названиями из склада) + результаты чек-листов
         $this->ticket = $ticket->load([
             'customer',
             'currentStage',
@@ -78,235 +85,31 @@ class TicketShow extends Component
             'usedParts.inventoryItem.product',
             'comments.user',
             'technician',
+            'checklistResults.user',
+            'checklistResults.checklist.stage',
         ]);
         $this->laborCost = $this->ticket->labor_cost ?? 0;
         $this->specs = $specsService->getSpecs($ticket->device_brand, $ticket->device_model) ?? [];
     }
 
-    public function updateLaborCost()
-    {
-        $this->validate(['laborCost' => 'required|numeric|min:0']);
-
-        $this->ticket->update(['labor_cost' => $this->laborCost]);
-
-        $partsTotal = $this->ticket->usedParts()->sum('selling_price');
-        $this->ticket->update(['estimated_cost' => $partsTotal + $this->laborCost]);
-
-        $this->ticket->refresh();
-        $this->successMessage = 'Стоимость работы мастера обновлена!';
-    }
-
-    public function assignToMe()
-    {
-        $this->ticket->update([
-            'assigned_technician_id' => auth()->id(),
-        ]);
-
-        $this->ticket->refresh();
-        $this->successMessage = 'Вы назначены ответственным мастером по этой заявке!';
-    }
-
-    #[Computed]
-    public function technicians()
-    {
-        $query = User::role('Technician');
-        if (! auth()->user()->hasRole('Admin')) {
-            $query->where('branch_id', auth()->user()->branch_id);
-        }
-
-        return $query->get();
-    }
-
-    public function assignTechnician()
-    {
-        if (empty($this->selectedTechnicianId)) {
-            $this->addError('selectedTechnicianId', 'Выберите мастера');
-
-            return;
-        }
-
-        $this->ticket->update([
-            'assigned_technician_id' => $this->selectedTechnicianId,
-        ]);
-
-        $this->ticket->refresh();
-        $this->successMessage = 'Мастер успешно назначен на заявку!';
-    }
-
-    #[Computed]
-    public function currentChecklist()
-    {
-        // Ориентируемся на реальные номера твоих стадий
-        $type = match ($this->ticket->currentStage->order_column) {
-            1 => 'intake', // 1: Приемка и Осмотр
-            6 => 'qc',     // 6: Контроль качества (QC)
-            7 => 'output', // 7: Готово к выдаче
-            8 => 'output', // 8: Выдано / Закрыто
-            default => null
-        };
-
-        if (! $type) {
-            return null;
-        }
-
-        // Сначала ищем чек-лист, привязанный к конкретной стадии и типу устройства
-        $checklist = Checklist::with('items')
-            ->where('type', $type)
-            ->where('is_active', true)
-            ->where(function ($q) {
-                $q->whereNull('stage_id')
-                    ->orWhere('stage_id', $this->ticket->current_stage_id);
-            })
-            ->where(function ($q) {
-                // Получаем device_type из названия типа устройства
-                $deviceType = DeviceType::where('name', $this->ticket->device_type)->first();
-                if ($deviceType) {
-                    $q->whereNull('device_type_id')
-                        ->orWhere('device_type_id', $deviceType->id);
-                } else {
-                    $q->whereNull('device_type_id');
-                }
-            })
-            ->orderBy('sort_order')
-            ->first();
-
-        return $checklist;
-    }
-
-    // --- МОДУЛЬ СКЛАДА (Поиск и добавление запчасти) ---
-
-    public function updatedShowPartForm(bool $value)
-    {
-        if ($value) {
-            $this->searchPartSku = '';
-            $this->refreshAvailableParts();
-        }
-    }
-
-    public function updatedSearchPartSku(string $value)
-    {
-        if ($this->showPartForm) {
-            $this->refreshAvailableParts();
-        }
-    }
-
-    public function refreshAvailableParts()
-    {
-        $parts = $this->loadAvailableParts();
-        $this->availablePartsList = $parts->pluck('id')->toArray();
-        $this->availablePartsVersion++;
-    }
-
-    public function availableParts()
-    {
-        if (! $this->showPartForm) {
-            return [];
-        }
-
-        if (empty($this->availablePartsList)) {
-            return [];
-        }
-
-        return InventoryItem::with('product')
-            ->whereIn('id', $this->availablePartsList)
-            ->get();
-    }
-
-    public function attachPart(AttachPartToTicketAction $action)
-    {
-        $this->validate([
-            // Добавляем строгую проверку прямо в БД перед запуском Action
-            'selectedPartId' => [
-                'required',
-                Rule::exists('inventory_items', 'id')->where('status', 'available'),
-            ],
-            'partSellingPrice' => 'required|numeric|min:0',
-            'partWarrantyDays' => 'required|integer|min:0',
-        ], [
-            // Кастомное сообщение об ошибке, если деталь уже забрал другой мастер
-            'selectedPartId.exists' => 'Эта деталь уже зарезервирована или списана.',
-        ]);
-
-        // ... дальше код остается без изменений
-        $action->execute(
-            $this->ticket,
-            $this->selectedPartId, // Теперь передается правильная строка ULID
-            (float) $this->partSellingPrice,
-            (int) $this->partWarrantyDays
-        );
-
-        // Сбрасываем форму
-        $this->reset(['showPartForm', 'searchPartSku', 'selectedPartId', 'partSellingPrice']);
-        $this->partWarrantyDays = 30;
-        $this->refreshAvailableParts();
-
-        // Обновляем данные заявки
-        $this->ticket->refresh();
-        $this->ticket->load(['usedParts.inventoryItem.product']);
-    }
-
-    public function saveChecklist()
-    {
-        $checklist = $this->currentChecklist;
-        if (! $checklist) {
-            return;
-        }
-
-        $userId = auth()->id() ?? User::first()->id ?? 1;
-
-        ChecklistResult::create([
-            'ticket_id' => $this->ticket->id,
-            'checklist_id' => $checklist->id,
-            'user_id' => $userId,
-            'answers_json' => $this->checklistAnswers,
-        ]);
-
-        $this->successMessage = 'Чек-лист успешно заполнен и сохранен в базе!';
-
-        // Очищаем галочки после сохранения
-        $this->checklistAnswers = [];
-    }
-
-    public function addComment()
-    {
-        $this->validate(['newComment' => 'required|string|max:2000']);
-
-        $this->ticket->comments()->create([
-            'user_id' => auth()->id() ?? 1, // Если не авторизован, ставим админа для теста
-            'content' => $this->newComment,
-        ]);
-
-        $this->reset('newComment');
-        $this->ticket->refresh();
-        $this->ticket->load(['comments.user']);
-    }
-
-    public function generateMagicLink()
-    {
-        $link = MagicLink::create([
-            'ticket_id' => $this->ticket->id,
-            'token' => Str::random(32),
-        ]);
-        if ($this->ticket->customer->email) {
-            Mail::to($this->ticket->customer->email)->queue(new MagicLinkMail($this->ticket, $link));
-            $this->successMessage = 'Ссылка создана и письмо УЛЕТЕЛО клиенту на: '.$this->ticket->customer->email;
-        } else {
-            $this->successMessage = 'Ссылка создана (Email клиента не указан): '.route('client.portal', $link->token);
-        }
-    }
-
-    #[Computed]
-    public function nextStage()
-    {
-        // Вычисляем, какая стадия будет следующей в воронке
-        return PipelineStage::where('pipeline_id', $this->ticket->pipeline_id)
-            ->where('order_column', '>', $this->ticket->currentStage->order_column)
-            ->orderBy('order_column', 'asc')
-            ->first();
-    }
+    // ... (код методов)
 
     public function moveToNextStage()
     {
+        // 1. ПРОВЕРКА ЧЕК-ЛИСТА
+        $currentChecklist = $this->currentChecklist;
+        if ($currentChecklist) {
+            $hasResult = $this->ticket->checklistResults()
+                ->where('checklist_id', $currentChecklist->id)
+                ->exists();
+
+            if (! $hasResult) {
+                $this->addError('stage_error', 'Необходимо заполнить чек-лист перед переходом на следующий этап!');
+
+                return;
+            }
+        }
+
         // ЖЕСТКАЯ БЛОКИРОВКА: Если стадия = 3 (Согласование с клиентом)
         if ($this->ticket->currentStage->order_column == 3) {
             $this->addError('stage_error', 'Ожидайте ответа! Клиент должен согласовать ремонт по ссылке.');
@@ -319,6 +122,7 @@ class TicketShow extends Component
             return;
         }
 
+        // ... дальше код метода moveToNextStage остается без изменений (последовательность закрытия/открытия этапов)
         // 1. Закрываем текущую историю
         $currentHistory = $this->ticket->histories()->whereNull('exited_at')->latest()->first();
         if ($currentHistory) {
@@ -467,9 +271,169 @@ class TicketShow extends Component
         $this->successMessage = 'Запчасть удалена из заявки';
     }
 
+    public function availableParts()
+    {
+        if (! $this->showPartForm) {
+            return [];
+        }
+
+        if (empty($this->availablePartsList)) {
+            return [];
+        }
+
+        return InventoryItem::with('product')
+            ->whereIn('id', $this->availablePartsList)
+            ->get();
+    }
+
+    #[Computed]
+    public function currentChecklist(): ?Checklist
+    {
+        $type = match ($this->ticket->currentStage->order_column) {
+            1 => 'intake',
+            2 => 'diagnostics',
+            6 => 'qc',
+            7 => 'output',
+            8 => 'output',
+            default => null,
+        };
+
+        if (! $type) {
+            return null;
+        }
+
+        $deviceType = DeviceType::where('name', $this->ticket->device_type)->first();
+
+        return Checklist::with('items')
+            ->where('type', $type)
+            ->where('is_active', true)
+            ->where(fn ($q) => $q->whereNull('stage_id')->orWhere('stage_id', $this->ticket->current_stage_id))
+            ->where(fn ($q) => $q->whereNull('device_type_id')->when($deviceType, fn ($q) => $q->orWhere('device_type_id', $deviceType->id)))
+            ->first();
+    }
+
+    public function saveChecklist()
+    {
+        $checklist = $this->currentChecklist;
+        if (! $checklist) {
+            return;
+        }
+
+        $userId = auth()->id() ?? User::first()->id ?? 1;
+
+        ChecklistResult::create([
+            'ticket_id' => $this->ticket->id,
+            'checklist_id' => $checklist->id,
+            'user_id' => $userId,
+            'answers_json' => $this->checklistAnswers,
+        ]);
+
+        $this->successMessage = 'Чек-лист успешно заполнен и сохранен в базе!';
+        $this->checklistAnswers = [];
+    }
+
+    public function updateLaborCost()
+    {
+        $this->validate(['laborCost' => 'required|numeric|min:0']);
+
+        $this->ticket->update(['labor_cost' => $this->laborCost]);
+
+        $partsTotal = $this->ticket->usedParts()->sum('selling_price');
+        $this->ticket->update(['estimated_cost' => $partsTotal + $this->laborCost]);
+
+        $this->ticket->refresh();
+        $this->successMessage = 'Стоимость работы мастера обновлена!';
+    }
+
+    public function assignToMe()
+    {
+        $this->ticket->update([
+            'assigned_technician_id' => auth()->id(),
+        ]);
+
+        $this->ticket->refresh();
+        $this->successMessage = 'Вы назначены ответственным мастером по этой заявке!';
+    }
+
+    #[Computed]
+    public function technicians()
+    {
+        $query = User::role('Technician');
+        if (! auth()->user()->hasRole('Admin')) {
+            $query->where('branch_id', auth()->user()->branch_id);
+        }
+
+        return $query->get();
+    }
+
+    public function assignTechnician()
+    {
+        if (empty($this->selectedTechnicianId)) {
+            $this->addError('selectedTechnicianId', 'Выберите мастера');
+
+            return;
+        }
+
+        $this->ticket->update([
+            'assigned_technician_id' => $this->selectedTechnicianId,
+        ]);
+
+        $this->ticket->refresh();
+        $this->successMessage = 'Мастер успешно назначен на заявку!';
+    }
+
+    public function addComment()
+    {
+        $this->validate(['newComment' => 'required|string|max:2000']);
+
+        $this->ticket->comments()->create([
+            'user_id' => auth()->id() ?? 1,
+            'content' => $this->newComment,
+        ]);
+
+        $this->reset('newComment');
+        $this->ticket->refresh();
+        $this->ticket->load(['comments.user']);
+    }
+
+    public function generateMagicLink()
+    {
+        $link = MagicLink::create([
+            'ticket_id' => $this->ticket->id,
+            'token' => Str::random(32),
+        ]);
+        if ($this->ticket->customer->email) {
+            Mail::to($this->ticket->customer->email)->queue(new MagicLinkMail($this->ticket, $link));
+            $this->successMessage = 'Ссылка создана и письмо УЛЕТЕЛО клиенту на: '.$this->ticket->customer->email;
+        } else {
+            $this->successMessage = 'Ссылка создана (Email клиента не указан): '.route('client.portal', $link->token);
+        }
+    }
+
+    public function updatedShowPartForm(bool $value)
+    {
+        if ($value) {
+            $this->searchPartSku = '';
+            $this->refreshAvailableParts();
+        }
+    }
+
+    public function updatedSearchPartSku(string $value)
+    {
+        if ($this->showPartForm) {
+            $this->refreshAvailableParts();
+        }
+    }
+
+    public function refreshAvailableParts()
+    {
+        $parts = $this->loadAvailableParts();
+        $this->availablePartsList = $parts->pluck('id')->toArray();
+        $this->availablePartsVersion++;
+    }
+
     public function render()
     {
-        // Инициализируем список запчастей при первом рендере
         if ($this->showPartForm && empty($this->availablePartsList)) {
             $this->refreshAvailableParts();
         }

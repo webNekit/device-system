@@ -95,6 +95,11 @@ class Ticket extends Model
         return $this->hasMany(TicketStageHistory::class);
     }
 
+    public function checklistResults(): HasMany
+    {
+        return $this->hasMany(ChecklistResult::class);
+    }
+
     public function technician()
     {
         return $this->belongsTo(User::class, 'assigned_technician_id');
