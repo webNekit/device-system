@@ -168,6 +168,8 @@ class TicketManager extends Component
                 },
                 'tickets.customer',
                 'tickets.histories',
+                'tickets.checklistResults.checklist.items',
+                'tickets.checklistResults.user',
             ])
             ->orderBy('order_column')
             ->get();

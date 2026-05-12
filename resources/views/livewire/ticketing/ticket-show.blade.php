@@ -145,21 +145,6 @@
 
         <!-- Main Info -->
         <div class="lg:col-span-6 space-y-4">
-            <!-- Specs -->
-            <div class="card p-5 bg-gray-900">
-                <h3 class="text-xs font-semibold text-gray-400 uppercase mb-4">Характеристики</h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    @forelse($specs as $key => $value)
-                        <div>
-                            <p class="text-[10px] text-gray-500 uppercase mb-1">{{ $key }}</p>
-                            <p class="text-sm font-medium text-white">{{ $value }}</p>
-                        </div>
-                    @empty
-                        <p class="text-xs text-gray-500 col-span-4">Спецификации не найдены</p>
-                    @endforelse
-                </div>
-            </div>
-
             <!-- Defect -->
             <div class="card p-5">
                 <h3 class="text-xs font-semibold text-gray-500 uppercase mb-3">Заявленный дефект</h3>

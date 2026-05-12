@@ -345,9 +345,16 @@
                                     </p>
 
                                     <div class="flex items-center justify-between mt-auto pt-2 border-t border-gray-100">
-                                        <div class="flex items-center text-[10px] font-medium text-gray-500 uppercase">
-                                            <span class="material-symbols-outlined text-xs mr-1">person</span>
-                                            {{ $ticket->assignedTechnician?->name ? Str::limit($ticket->assignedTechnician->name, 12) : '—' }}
+                                        <div class="flex items-center gap-2">
+                                            <div class="flex items-center text-[10px] font-medium text-gray-500 uppercase">
+                                                <span class="material-symbols-outlined text-xs mr-1">person</span>
+                                                {{ $ticket->assignedTechnician?->name ? Str::limit($ticket->assignedTechnician->name, 12) : '—' }}
+                                            </div>
+                                            @php $resultCount = $ticket->checklistResults->count(); @endphp
+                                            <div class="flex items-center text-[10px] font-medium {{ $resultCount > 0 ? 'text-green-600' : 'text-gray-300' }}">
+                                                <span class="material-symbols-outlined text-xs mr-0.5">checklist</span>
+                                                <span>{{ $resultCount }}</span>
+                                            </div>
                                         </div>
 
                                         @if($ticket->sla_deadline_at)
@@ -360,19 +367,102 @@
                                     </div>
                                 </a>
 
-                                <!-- Кнопка "Взять в работу" для техников -->
-                                @if(is_null($ticket->assigned_technician_id) && auth()->user()->hasRole('Technician'))
-                                    <button wire:click="claimTicket('{{ $ticket->id }}')"
-                                        class="absolute hidden group-hover:flex right-2 top-2 bg-indigo-600 text-white hover:bg-indigo-700 px-2 py-1.5 rounded-lg transition z-20 shadow-sm text-[10px] font-bold uppercase">
-                                        <span class="material-symbols-outlined text-xs mr-1">how_to_reg</span>
-                                        Взять
-                                    </button>
-                                @elseif(isset($stagesList[$index + 1]))
-                                    @php $nextStage = $stagesList[$index + 1]; @endphp
-                                    <button wire:click="moveTicket('{{ $ticket->id }}', {{ $nextStage->id }})"
-                                        class="absolute hidden group-hover:flex right-2 top-2 bg-white text-gray-600 hover:bg-gray-900 hover:text-white p-1.5 rounded-lg transition z-20 shadow-sm border border-gray-200">
-                                        <span class="material-symbols-outlined text-sm">arrow_forward</span>
-                                    </button>
+                                <!-- Кнопки действий -->
+                                <div class="absolute hidden group-hover:flex right-2 top-2 gap-1 z-20">
+                                    @if($ticket->checklistResults->isNotEmpty())
+                                        <button @click.stop="$dispatch('open-checklist-{{ $ticket->id }}')"
+                                            class="bg-white text-gray-600 hover:bg-gray-900 hover:text-white p-1.5 rounded-lg transition shadow-sm border border-gray-200">
+                                            <span class="material-symbols-outlined text-sm">checklist</span>
+                                        </button>
+                                    @endif
+                                    @if(is_null($ticket->assigned_technician_id) && auth()->user()->hasRole('Technician'))
+                                        <button wire:click="claimTicket('{{ $ticket->id }}')"
+                                            class="bg-indigo-600 text-white hover:bg-indigo-700 px-2 py-1.5 rounded-lg transition shadow-sm text-[10px] font-bold uppercase flex items-center">
+                                            <span class="material-symbols-outlined text-xs mr-1">how_to_reg</span>
+                                            Взять
+                                        </button>
+                                    @elseif(isset($stagesList[$index + 1]))
+                                        @php $nextStage = $stagesList[$index + 1]; @endphp
+                                        <button wire:click="moveTicket('{{ $ticket->id }}', {{ $nextStage->id }})"
+                                            class="bg-white text-gray-600 hover:bg-gray-900 hover:text-white p-1.5 rounded-lg transition shadow-sm border border-gray-200">
+                                            <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                                        </button>
+                                    @endif
+                                </div>
+
+                                <!-- Modal: Чек-листы -->
+                                @if($ticket->checklistResults->isNotEmpty())
+                                    <div x-data="{ open: false }"
+                                        x-on:open-checklist-{{ $ticket->id }}.window="open = true"
+                                        x-show="open"
+                                        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                                        x-transition:enter="transition duration-200 ease-out"
+                                        x-transition:enter-start="opacity-0"
+                                        x-transition:enter-end="opacity-100"
+                                        x-transition:leave="transition duration-150 ease-in"
+                                        x-transition:leave-start="opacity-100"
+                                        x-transition:leave-end="opacity-0">
+                                        <div class="fixed inset-0 bg-black/40" @click="open = false"></div>
+                                        <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto"
+                                            @click.outside="open = false">
+                                            <div class="sticky top-0 bg-white border-b border-gray-200 px-5 py-3 flex items-center justify-between rounded-t-xl">
+                                                <h3 class="text-xs font-semibold text-gray-900 uppercase">
+                                                    Чек-листы: {{ $ticket->device_brand }} {{ $ticket->device_model }}
+                                                </h3>
+                                                <button @click="open = false" class="p-1 hover:bg-gray-100 rounded-lg">
+                                                    <span class="material-symbols-outlined text-gray-500 text-lg">close</span>
+                                                </button>
+                                            </div>
+                                            <div class="p-5 space-y-4">
+                                                @php
+                                                    $typeMap = [1 => 'intake', 2 => 'diagnostics', 6 => 'qc', 7 => 'output', 8 => 'output'];
+                                                    $grouped = $ticket->checklistResults->groupBy(fn($r) => $r->checklist?->type);
+                                                @endphp
+                                                @foreach($grouped as $type => $results)
+                                                    @php
+                                                        $stageName = match ($type) {
+                                                            'intake' => 'Приемка и Осмотр',
+                                                            'diagnostics' => 'Диагностика',
+                                                            'qc' => 'Контроль качества',
+                                                            'output' => 'Выдача',
+                                                            default => $type,
+                                                        };
+                                                    @endphp
+                                                    <div>
+                                                        <h4 class="text-[11px] font-bold text-gray-900 uppercase mb-2 flex items-center gap-2">
+                                                            <span class="w-1.5 h-1.5 rounded-full bg-gray-900"></span>
+                                                            {{ $stageName }}
+                                                        </h4>
+                                                        <div class="space-y-2 pl-3">
+                                                            @foreach($results as $result)
+                                                                <div class="p-2.5 bg-gray-50 rounded-lg border border-gray-100">
+                                                                    <div class="flex items-center justify-between mb-1.5">
+                                                                        <p class="text-[10px] font-medium text-gray-900">
+                                                                            {{ $result->checklist?->name ?? 'Чек-лист #'.$result->checklist_id }}
+                                                                        </p>
+                                                                        <p class="text-[9px] text-gray-400">
+                                                                            {{ $result->user?->name ?? 'Система' }} | {{ $result->created_at->format('d.m H:i') }}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div class="space-y-0.5">
+                                                                        @foreach(($result->checklist?->items ?? []) as $item)
+                                                                            @php $checked = isset($result->answers_json[$item->id]) && $result->answers_json[$item->id]; @endphp
+                                                                            <div class="flex items-center gap-1.5 text-[10px] {{ $checked ? 'text-green-700' : 'text-gray-400' }}">
+                                                                                <span class="material-symbols-outlined" style="font-size: 12px;">
+                                                                                    {{ $checked ? 'check_box' : 'check_box_outline_blank' }}
+                                                                                </span>
+                                                                                <span class="{{ $checked ? '' : 'line-through' }}">{{ $item->question }}</span>
+                                                                            </div>
+                                                                        @endforeach
+                                                                    </div>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
                                 @endif
                             </div>
                         @endforeach
