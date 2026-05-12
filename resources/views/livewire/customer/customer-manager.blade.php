@@ -30,6 +30,16 @@
                     </button>
                 </div>
 
+                @if($successMessage)
+                    <div class="p-3 rounded-lg text-sm flex items-center gap-2 {{ $messageType === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700' }}">
+                        <span class="material-symbols-outlined fill text-sm">{{ $messageType === 'error' ? 'error' : 'check_circle' }}</span>
+                        <span>{{ $successMessage }}</span>
+                        <button wire:click="$set('successMessage', '')" class="ml-auto">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+                @endif
+
                 <form wire:submit="save" class="space-y-4">
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -68,26 +78,33 @@
 
                     @if($type === 'legal')
                         <div class="p-4 bg-gray-50 rounded-lg space-y-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1.5">ИНН</label>
+                                <div class="flex gap-2">
+                                    <input type="text" wire:model.live="inn"
+                                        class="input flex-1 px-4 min-h-12 border border-gray-300 rounded-lg"
+                                        placeholder="1234567890" />
+                                    <button type="button" wire:click="fillFromInn"
+                                        class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        @disabled(strlen($inn) < 10)>
+                                        Заполнить автоматически
+                                    </button>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-1">ИНН юрлица — 10 цифр, ИП — 12 цифр</p>
+                            </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-500 mb-1.5">ИНН</label>
-                                    <input px-4 w-full min-h-12 border border-gray-300 rounded-lg type="text" wire:model="inn"
-                                        class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg"
-                                        placeholder="1234567890" />
-                                </div>
-                                <div>
                                     <label class="block text-xs font-medium text-gray-500 mb-1.5">КПП</label>
-                                    <input px-4 w-full min-h-12 border border-gray-300 rounded-lg type="text" wire:model="kpp"
+                                    <input type="text" wire:model="kpp"
                                         class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg"
                                         placeholder="123456789" />
                                 </div>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1.5">Юр. адрес</label>
-                                <input px-4 w-full min-h-12 border border-gray-300 rounded-lg type="text"
-                                    wire:model="legal_address"
-                                    class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg"
-                                    placeholder="г. Москва, ул..." />
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-500 mb-1.5">Юр. адрес</label>
+                                    <input type="text" wire:model="legal_address"
+                                        class="input px-4 w-full min-h-12 border border-gray-300 rounded-lg"
+                                        placeholder="г. Москва, ул..." />
+                                </div>
                             </div>
                         </div>
                     @endif

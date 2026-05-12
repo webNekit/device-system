@@ -41,6 +41,8 @@ class CustomerManager extends Component
 
     public string $successMessage = '';
 
+    public string $messageType = '';
+
     #[Url(as: 'q')]
     public string $search = '';
 
@@ -63,18 +65,30 @@ class CustomerManager extends Component
             ->paginate(10);
     }
 
-    // Слушатель изменения ИНН (DaData)
-    public function updatedInn($value, DaDataService $service)
+    public function fillFromInn(DaDataService $service)
     {
-        if ($this->type === 'legal' && strlen($value) >= 10) {
-            $data = $service->findByInn($value);
+        if ($this->type !== 'legal') {
+            return;
+        }
 
-            if ($data) {
-                $this->name = $data['value'] ?? '';
-                $this->kpp = $data['data']['kpp'] ?? '';
-                $this->legal_address = $data['data']['address']['value'] ?? '';
-                $this->successMessage = 'Данные организации подгружены из DaData';
-            }
+        if (strlen($this->inn) < 10) {
+            $this->messageType = 'error';
+            $this->successMessage = 'ИНН должен содержать не менее 10 цифр';
+
+            return;
+        }
+
+        $data = $service->findByInn($this->inn);
+
+        if ($data) {
+            $this->name = $data['value'] ?? '';
+            $this->kpp = $data['data']['kpp'] ?? '';
+            $this->legal_address = $data['data']['address']['value'] ?? '';
+            $this->messageType = 'success';
+            $this->successMessage = 'Данные организации подгружены из DaData';
+        } else {
+            $this->messageType = 'error';
+            $this->successMessage = 'Организация с таким ИНН не найдена';
         }
     }
 
@@ -103,9 +117,11 @@ class CustomerManager extends Component
         if ($this->editingCustomerId) {
             $customer = Customer::findOrFail($this->editingCustomerId);
             $customer->update($data->toArray());
+            $this->messageType = 'success';
             $this->successMessage = 'Данные клиента обновлены';
         } else {
             $action->execute($data);
+            $this->messageType = 'success';
             $this->successMessage = 'Клиент успешно добавлен';
         }
 
@@ -133,6 +149,7 @@ class CustomerManager extends Component
         $this->legal_address = $customer->legal_address ?? '';
         $this->loyalty_level_id = $customer->loyalty_level_id;
 
+        $this->messageType = '';
         $this->successMessage = '';
         $this->showCreateForm = true;
     }
@@ -152,6 +169,7 @@ class CustomerManager extends Component
     {
         $customer = Customer::findOrFail($id);
         $customer->delete();
+        $this->messageType = 'success';
         $this->successMessage = 'Клиент удален';
 
         if ($this->editingCustomerId === $id) {

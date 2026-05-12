@@ -2,6 +2,7 @@
 
 namespace App\Presentation\Livewire\Customer;
 
+use App\Application\Services\DaDataService;
 use App\Domain\Customer\Models\Customer;
 use App\Domain\Ticketing\Models\Ticket;
 use Livewire\Attributes\Computed;
@@ -39,6 +40,8 @@ class CustomerShow extends Component
 
     public string $successMessage = '';
 
+    public string $messageType = '';
+
     public function mount(Customer $customer)
     {
         $this->customer = $customer->load('loyaltyLevel');
@@ -66,6 +69,7 @@ class CustomerShow extends Component
         ]);
 
         $this->showEditModal = false;
+        $this->messageType = 'success';
         $this->successMessage = 'Данные клиента успешно обновлены';
         $this->customer->refresh();
     }
@@ -77,6 +81,33 @@ class CustomerShow extends Component
         return redirect()->route('customers.index');
     }
 
+    public function fillEditFromInn(DaDataService $service)
+    {
+        if ($this->editType !== 'legal') {
+            return;
+        }
+
+        if (strlen($this->editInn) < 10) {
+            $this->messageType = 'error';
+            $this->successMessage = 'ИНН должен содержать не менее 10 цифр';
+
+            return;
+        }
+
+        $data = $service->findByInn($this->editInn);
+
+        if ($data) {
+            $this->editName = $data['value'] ?? '';
+            $this->editKpp = $data['data']['kpp'] ?? '';
+            $this->editLegalAddress = $data['data']['address']['value'] ?? '';
+            $this->messageType = 'success';
+            $this->successMessage = 'Данные организации подгружены из DaData';
+        } else {
+            $this->messageType = 'error';
+            $this->successMessage = 'Организация с таким ИНН не найдена';
+        }
+    }
+
     public function openEditModal()
     {
         $this->editType = $this->customer->type;
@@ -86,6 +117,8 @@ class CustomerShow extends Component
         $this->editInn = $this->customer->inn ?? '';
         $this->editKpp = $this->customer->kpp ?? '';
         $this->editLegalAddress = $this->customer->legal_address ?? '';
+        $this->messageType = '';
+        $this->successMessage = '';
         $this->showEditModal = true;
     }
 
