@@ -6,6 +6,7 @@ use App\Application\Services\GSMArenaService;
 use App\Domain\Branch\Models\User;
 use App\Domain\Finance\Actions\CreateTransactionAction;
 use App\Domain\Inventory\Models\InventoryItem;
+use App\Domain\Ticketing\Actions\AttachPartToTicketAction;
 use App\Domain\Ticketing\Mails\MagicLinkMail;
 use App\Domain\Ticketing\Mails\TicketReadyForPickupMail;
 use App\Domain\Ticketing\Models\Checklist;
@@ -19,6 +20,7 @@ use App\Domain\Ticketing\Models\TicketInventory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -423,6 +425,32 @@ class TicketShow extends Component
         if ($this->showPartForm) {
             $this->refreshAvailableParts();
         }
+    }
+
+    public function attachPart(AttachPartToTicketAction $action)
+    {
+        $this->validate([
+            'selectedPartId' => [
+                'required',
+                Rule::exists('inventory_items', 'id')->where('status', 'available'),
+            ],
+            'partSellingPrice' => 'required|numeric|min:0',
+            'partWarrantyDays' => 'required|integer|min:0',
+        ], [
+            'selectedPartId.exists' => 'Эта деталь уже зарезервирована или списана.',
+        ]);
+
+        $action->execute(
+            $this->ticket,
+            $this->selectedPartId,
+            (float) $this->partSellingPrice,
+            (int) $this->partWarrantyDays
+        );
+
+        $this->reset(['showPartForm', 'searchPartSku', 'selectedPartId', 'partSellingPrice']);
+        $this->partWarrantyDays = 30;
+        $this->ticket->refresh();
+        $this->ticket->load(['usedParts.inventoryItem.product']);
     }
 
     public function refreshAvailableParts()
